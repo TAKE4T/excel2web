@@ -1,2 +1,0 @@
-[console_scripts]
-excel2web = excel2web.cli:main
