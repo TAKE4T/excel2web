@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "excel2web"
+version = "0.1.0"
+description = "Read drug names from Excel and fetch prices from yakka-search.com, writing results back to a new Excel file."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "TAKE4T"}]
+dependencies = [
+  "requests>=2.31.0",
+  "beautifulsoup4>=4.12.2",
+  "lxml>=5.0.0",
+  "pandas>=2.1.0",
+  "openpyxl>=3.1.2",
+  "tenacity>=8.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.6.0",
+]
+
+[project.scripts]
+excel2web = "excel2web.cli:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+addopts = "-q"
