@@ -103,35 +103,19 @@ def extract_price_text(html: str) -> str | None:
 
     soup = BeautifulSoup(html, "lxml")
 
-    # Heuristic 1: table header contains "薬価" (mojibake-safe: search in bytes also later)
+    # Heuristic 1: table (most reliable)
     table = soup.select_one("table")
     if table:
-        headers = [th.get_text(" ", strip=True) for th in table.select("tr th")]
-        # Find column index that contains the Japanese word '薬価' after best-effort decode.
-        idx = None
-        for i, h in enumerate(headers):
-            if "薬価" in h:
-                idx = i
-                break
-
-        if idx is not None:
-            first_row = table.select_one("tr:nth-of-type(2)")
-            if first_row:
-                tds = [td.get_text(" ", strip=True) for td in first_row.select("td")]
-                # th includes the leading blank column while td includes it as well, so align by idx.
-                if 0 <= idx < len(tds):
-                    cell = tds[idx]
-                    m = _PRICE_RE.search(cell)
-                    if m:
-                        return m.group(1)
-
-        # If header text is mojibake, fallback by searching for the known pattern:
-        # '薬価 (' appears as garbled bytes in some environments. We'll instead
-        # pick the first numeric cell in 5th/6th columns which are typically prices.
+        # The page effectively renders:
+        #   0: category, 1: product name, 2: spec, 3: company,
+        #   4: current price, 5: previous price, 6: notes
+        # Header text may be mojibake depending on environment, so we primarily
+        # use column positions.
         first_row = table.select_one("tr:nth-of-type(2)")
         if first_row:
             tds = [td.get_text(" ", strip=True) for td in first_row.select("td")]
-            for col in (4, 5, 3):
+            # Prefer current price -> previous price.
+            for col in (4, 5):
                 if 0 <= col < len(tds):
                     m = _PRICE_RE.search(tds[col])
                     if m:
