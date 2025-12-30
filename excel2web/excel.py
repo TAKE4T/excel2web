@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import sys
 
 import pandas as pd
 
@@ -50,7 +51,8 @@ def process_excel(
         try:
             result = client.search_price_text(drug_name)
             prices.append(result.price_text)
-        except Exception:
+        except Exception as e:
+            print(f"[excel2web] failed for '{drug_name}': {e}", file=sys.stderr)
             prices.append("Error")
 
     df[options.column + 1] = prices

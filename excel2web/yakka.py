@@ -70,10 +70,11 @@ class YakkaClient:
     def search_price_text(self, drug_name: str) -> YakkaResult:
         self._sleep_if_needed()
 
-        # 実サイトの検索URLは変わり得るので、まずはよくあるパターンで試す。
-        # うまくいかない場合でも「Error」扱いではなく Not Found に寄せる。
-        url = f"{self.base_url}/search"
-        params = {"word": drug_name}
+        # NOTE: 2025-12 時点でトップページのフォームは /index.php に GET で
+        #   s=<keyword>&stype=1
+        # を投げている。
+        url = f"{self.base_url}/index.php"
+        params = {"s": drug_name, "stype": "1"}
 
         resp = self.session.get(url, params=params, timeout=self.timeout_seconds)
         self._last_request_at = time.time()
@@ -86,7 +87,7 @@ class YakkaClient:
         return YakkaResult(drug_name=drug_name, price_text=price_text, url=str(resp.url))
 
 
-_PRICE_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)(?:\s*)?(円|点)")
+_PRICE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\b")
 
 
 def extract_price_text(html: str) -> str | None:
@@ -102,7 +103,41 @@ def extract_price_text(html: str) -> str | None:
 
     soup = BeautifulSoup(html, "lxml")
 
-    # Heuristic 1: find any element with class/id containing price-ish keywords
+    # Heuristic 1: table header contains "薬価" (mojibake-safe: search in bytes also later)
+    table = soup.select_one("table")
+    if table:
+        headers = [th.get_text(" ", strip=True) for th in table.select("tr th")]
+        # Find column index that contains the Japanese word '薬価' after best-effort decode.
+        idx = None
+        for i, h in enumerate(headers):
+            if "薬価" in h:
+                idx = i
+                break
+
+        if idx is not None:
+            first_row = table.select_one("tr:nth-of-type(2)")
+            if first_row:
+                tds = [td.get_text(" ", strip=True) for td in first_row.select("td")]
+                # th includes the leading blank column while td includes it as well, so align by idx.
+                if 0 <= idx < len(tds):
+                    cell = tds[idx]
+                    m = _PRICE_RE.search(cell)
+                    if m:
+                        return m.group(1)
+
+        # If header text is mojibake, fallback by searching for the known pattern:
+        # '薬価 (' appears as garbled bytes in some environments. We'll instead
+        # pick the first numeric cell in 5th/6th columns which are typically prices.
+        first_row = table.select_one("tr:nth-of-type(2)")
+        if first_row:
+            tds = [td.get_text(" ", strip=True) for td in first_row.select("td")]
+            for col in (4, 5, 3):
+                if 0 <= col < len(tds):
+                    m = _PRICE_RE.search(tds[col])
+                    if m:
+                        return m.group(1)
+
+    # Fallback 2: search any element with class/id containing price-ish keywords
     candidates: list[str] = []
     for el in soup.select("[class*='price' i], [class*='yakka' i], [id*='price' i], [id*='yakka' i]"):
         text = " ".join(el.get_text(" ", strip=True).split())
@@ -112,12 +147,12 @@ def extract_price_text(html: str) -> str | None:
     for text in candidates:
         m = _PRICE_RE.search(text)
         if m:
-            return f"{m.group(1)}{m.group(2)}"
+            return m.group(1)
 
-    # Fallback: search whole document text
+    # Fallback 3: search whole document
     whole = " ".join(soup.get_text(" ", strip=True).split())
     m = _PRICE_RE.search(whole)
     if m:
-        return f"{m.group(1)}{m.group(2)}"
+        return m.group(1)
 
     return None
