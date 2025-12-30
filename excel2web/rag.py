@@ -15,6 +15,7 @@ class RagIndex:
     """
 
     name_to_price: dict[str, str]
+    yj_to_price: dict[str, str]
 
 
 def normalize_name(name: str) -> str:
@@ -27,12 +28,14 @@ def build_rag_index(
     sheet_name: str | int = 0,
     name_column: str = "品名",
     price_column: str = "薬価",
+    yj_column: str = "薬価基準収載医薬品コード",
 ) -> RagIndex:
     rag_path = Path(rag_dir)
     if not rag_path.exists() or not rag_path.is_dir():
-        return RagIndex(name_to_price={})
+        return RagIndex(name_to_price={}, yj_to_price={})
 
     mapping: dict[str, str] = {}
+    yj_mapping: dict[str, str] = {}
 
     for xlsx in sorted(rag_path.glob("*.xlsx")):
         df = pd.read_excel(xlsx, sheet_name=sheet_name, header=0)
@@ -49,4 +52,13 @@ def build_rag_index(
                 continue
             mapping[k] = str(row[price_column]).strip()
 
-    return RagIndex(name_to_price=mapping)
+        if yj_column in df.columns:
+            for _, row in df[[yj_column, price_column]].dropna().iterrows():
+                yj = str(row[yj_column]).strip()
+                if not yj:
+                    continue
+                if yj in yj_mapping:
+                    continue
+                yj_mapping[yj] = str(row[price_column]).strip()
+
+    return RagIndex(name_to_price=mapping, yj_to_price=yj_mapping)

@@ -15,6 +15,39 @@ class ProcessOptions:
     column: int = 0  # 0-based; 0 means column A
 
 
+def transfer_price_by_yj_code(
+    input_file: str,
+    output_file: str,
+    *,
+    sheet: str | int | None = 0,
+    yj_column: int = 0,
+    price_column: int = 3,  # D列
+    rag_index: RagIndex,
+) -> None:
+    """Transfer price from local RAG index by YJ code.
+
+    - input A列（0）: YJコード
+    - output D列（3）: 薬価
+    """
+
+    df = pd.read_excel(input_file, header=None, sheet_name=sheet)
+
+    out: list[str] = []
+    for v in df[yj_column].tolist():
+        if pd.isna(v):
+            out.append("")
+            continue
+        yj = str(v).strip()
+        if not yj or yj.lower() == "yjコード":
+            out.append("薬価(円)")
+            continue
+
+        out.append(rag_index.yj_to_price.get(yj, ""))
+
+    df[price_column] = out
+    df.to_excel(output_file, index=False, header=False)
+
+
 def process_excel(
     input_file: str,
     output_file: str,
@@ -37,7 +70,7 @@ def process_excel(
 
     options = options or ProcessOptions()
     client = client or YakkaClient()
-    rag_index = rag_index or RagIndex(name_to_price={})
+    rag_index = rag_index or RagIndex(name_to_price={}, yj_to_price={})
 
     df = pd.read_excel(input_file, header=None, sheet_name=options.sheet)
 

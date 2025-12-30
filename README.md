@@ -36,6 +36,15 @@ excel2web --input input.xlsx --output output.xlsx
 excel2web --input input.xlsx --output output.xlsx --rag-dir RAG
 ```
 
+### YJコードで薬価を転記したい場合（A列→D列）
+
+- 入力: `input.xlsx` の A列 = YJコード
+- 出力: `output.xlsx` の D列 = 薬価（RAGから転記）
+
+```bash
+excel2web --mode yj --input input.xlsx --output output.xlsx --rag-dir RAG
+```
+
 - `--sheet` でシート名/番号を指定できます。
 - `--column` で薬品名の列（0始まり）を指定できます（既定 0 = A列）。
 
