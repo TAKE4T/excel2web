@@ -5,6 +5,7 @@ import sys
 
 import pandas as pd
 
+from .rag import RagIndex, normalize_name
 from .yakka import YakkaClient
 
 
@@ -20,6 +21,7 @@ def process_excel(
     *,
     options: ProcessOptions | None = None,
     client: YakkaClient | None = None,
+    rag_index: RagIndex | None = None,
 ) -> None:
     """Read Excel, fetch prices, and write results.
 
@@ -35,6 +37,7 @@ def process_excel(
 
     options = options or ProcessOptions()
     client = client or YakkaClient()
+    rag_index = rag_index or RagIndex(name_to_price={})
 
     df = pd.read_excel(input_file, header=None, sheet_name=options.sheet)
 
@@ -46,6 +49,12 @@ def process_excel(
         drug_name = str(value).strip()
         if not drug_name:
             prices.append("")
+            continue
+
+        # Prefer local RAG master (exact match after normalization)
+        rag_key = normalize_name(drug_name)
+        if rag_key in rag_index.name_to_price:
+            prices.append(rag_index.name_to_price[rag_key])
             continue
 
         try:

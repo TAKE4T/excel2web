@@ -27,6 +27,15 @@ pip install -e .
 excel2web --input input.xlsx --output output.xlsx
 ```
 
+### ローカルの薬価マスタ（RAG）を優先したい場合
+
+このリポジトリには `RAG/` に薬価マスタExcel（例: `tp*.xlsx`）を置けます。
+`--rag-dir` を指定すると、まずRAGから品名一致を探し、見つからない場合のみWeb検索します。
+
+```bash
+excel2web --input input.xlsx --output output.xlsx --rag-dir RAG
+```
+
 - `--sheet` でシート名/番号を指定できます。
 - `--column` で薬品名の列（0始まり）を指定できます（既定 0 = A列）。
 

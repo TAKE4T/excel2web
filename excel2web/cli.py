@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from .excel import ProcessOptions, process_excel
+from .rag import build_rag_index
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,6 +21,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="0-based column index for drug names (default: 0 => column A)",
     )
+    p.add_argument(
+        "--rag-dir",
+        default=None,
+        help="Directory that contains local master Excel files (default: disabled).",
+    )
     return p
 
 
@@ -35,5 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     options = ProcessOptions(sheet=_parse_sheet(args.sheet), column=args.column)
-    process_excel(args.input, args.output, options=options)
+
+    rag_index = build_rag_index(args.rag_dir) if args.rag_dir else None
+    process_excel(args.input, args.output, options=options, rag_index=rag_index)
     return 0
